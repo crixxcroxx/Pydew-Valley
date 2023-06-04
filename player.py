@@ -1,6 +1,7 @@
 import pygame
 from settings import *
 from support import *
+from timer import Timer
 
 
 class Player(pygame.sprite.Sprite):
@@ -17,7 +18,31 @@ class Player(pygame.sprite.Sprite):
         # movement attributes
         self.direction = pygame.math.Vector2()
         self.pos = pygame.math.Vector2(self.rect.center)
-        self.speed = 150
+        self.speed = 120
+
+        # timers
+        self.timers = {
+            "tool use": Timer(350, self.use_tool),
+            "tool switch": Timer(200),
+            "seed use": Timer(350, self.use_seed),
+            "seed switch": Timer(200),
+        }
+
+        # tools
+        self.tools = ["hoe", "axe", "water"]
+        self.tool_index = 0
+        self.selected_tool = self.tools[self.tool_index]
+
+        # seeds
+        self.seeds = ["corn", "tomato"]
+        self.seed_index = 0
+        self.selected_seed = self.seeds[self.seed_index]
+
+    def use_tool(self):
+        print(self.selected_tool)
+
+    def use_seed(self):
+        pass
 
     def import_assets(self):
         self.animations = {
@@ -57,29 +82,69 @@ class Player(pygame.sprite.Sprite):
     def input(self):
         keys = pygame.key.get_pressed()
 
-        if keys[pygame.K_w]:
-            self.direction.y = -1
-            self.status = "up"
-        elif keys[pygame.K_s]:
-            self.direction.y = 1
-            self.status = "down"
-        else:
-            self.direction.y = 0
+        if not self.timers["tool use"].active:
+            if keys[pygame.K_w]:
+                self.direction.y = -1
+                self.status = "up"
+            elif keys[pygame.K_s]:
+                self.direction.y = 1
+                self.status = "down"
+            else:
+                self.direction.y = 0
 
-        if keys[pygame.K_d]:
-            self.direction.x = 1
-            self.status = "right"
-        elif keys[pygame.K_a]:
-            self.direction.x = -1
-            self.status = "left"
-        else:
-            self.direction.x = 0
+            if keys[pygame.K_d]:
+                self.direction.x = 1
+                self.status = "right"
+            elif keys[pygame.K_a]:
+                self.direction.x = -1
+                self.status = "left"
+            else:
+                self.direction.x = 0
+
+            # tool use
+            if keys[pygame.K_i]:
+                self.timers["tool use"].activate()
+                self.direction = pygame.math.Vector2()
+                self.frame_index = 0
+
+            # change tool
+            if keys[pygame.K_u] and not self.timers["tool switch"].active:
+                self.timers["tool switch"].activate()
+                self.tool_index += 1
+                self.tool_index = (
+                    self.tool_index if self.tool_index < len(self.tools) else 0
+                )
+                self.selected_tool = self.tools[self.tool_index]
+
+            # seed use
+            if keys[pygame.K_k]:
+                self.timers["seed use"].activate()
+                self.direction = pygame.math.Vector2()
+                self.frame_index = 0
+                print("use seed")
+
+            # change seed
+            if keys[pygame.K_j] and not self.timers["seed switch"].active:
+                self.timers["seed switch"].activate()
+                self.seed_index += 1
+                self.seed_index = (
+                    self.seed_index if self.seed_index < len(self.seeds) else 0
+                )
+                self.selected_seed = self.seeds[self.seed_index]
+                print(self.selected_seed)
 
     def get_status(self):
         # idle
         if self.direction.magnitude() == 0:
             self.status = self.status.split("_")[0] + "_idle"
+
         # tool usage
+        if self.timers["tool use"].active:
+            self.status = self.status.split("_")[0] + "_" + self.selected_tool
+
+    def update_timers(self):
+        for timer in self.timers.values():
+            timer.update()
 
     def move(self, dt):
         # normalize vector
@@ -97,5 +162,6 @@ class Player(pygame.sprite.Sprite):
     def update(self, dt):
         self.input()
         self.get_status()
+        self.update_timers()
         self.move(dt)
         self.animate(dt)
